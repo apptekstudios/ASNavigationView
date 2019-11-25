@@ -81,9 +81,7 @@ struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
 		}
 		
 		func willDismiss(_ host: ASHostingControllerProtocol) {
-			print(controllerStack)
 			controllerStack.removeAll { $0.controller === host }
-			print(controllerStack)
 		}
 	}
 }
@@ -98,10 +96,10 @@ protocol ASNavigationCoordinator: class {
 
 class ASNavigationController_UIKit: UINavigationController {
 	
-	override func viewDidLayoutSubviews() {
+	/*override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
 		//printContent()
-	}
+	}*/
 	
 	/*func printContent() {
 		for controller in viewControllers.reversed() {
