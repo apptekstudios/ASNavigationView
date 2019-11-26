@@ -8,15 +8,18 @@ import SwiftUI
 internal struct ASHostingControllerModifier: ViewModifier
 {
 	weak var coordinator: ASNavigationCoordinator?
+	var layerID: UUID?
 	
-	init(_ coordinator: ASNavigationCoordinator? = nil) {
+	init(_ coordinator: ASNavigationCoordinator? = nil, layerID: UUID?) {
 		self.coordinator = coordinator
+		self.layerID = layerID
 	}
 	
 	func body(content: Content) -> some View
 	{
 		content
 			.transformEnvironment(\.dynamicNavState) { state in
+				state.layerID = self.layerID
 				state.coordinator = self.coordinator
 		}
 	}
@@ -34,7 +37,7 @@ internal class ASHostingController<ViewType: View>: ASHostingControllerProtocol
 	init(_ view: ViewType)
 	{
 		self.hostedView = view
-		self.uiHostingController = .init(rootView: view.modifier(ASHostingControllerModifier()))
+		self.uiHostingController = .init(rootView: view.modifier(ASHostingControllerModifier(layerID: nil)))
 		self.uiHostingController.owner = self
 	}
 	
@@ -49,7 +52,7 @@ internal class ASHostingController<ViewType: View>: ASHostingControllerProtocol
 	}
 	
 	var hostedView: ViewType
-	var modifier: ASHostingControllerModifier = ASHostingControllerModifier()
+	var modifier: ASHostingControllerModifier = ASHostingControllerModifier(layerID: nil)
 	{
 		didSet
 		{

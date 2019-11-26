@@ -11,11 +11,15 @@ import SwiftUI
 
 struct ASNavigationState {
 	weak var coordinator: ASNavigationCoordinator?
+	var layerID: UUID?
+	
 	func push<T: View>(_ view: T, withScreenName screenName: String? = nil) {
-		coordinator?.push(view, withScreenName: screenName)
+		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return }
+		coordinator?.push(view, fromLayerID: layerID, withScreenName: screenName)
 	}
 	func pop(toScreenNamed screenName: String? = nil) {
-		coordinator?.pop(toScreenNamed: screenName)
+		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return  }
+		coordinator?.pop(fromLayerID: layerID, toScreenNamed: screenName)
 	}
 	func popToRoot() {
 		coordinator?.popToRoot()

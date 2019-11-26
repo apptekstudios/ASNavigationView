@@ -52,16 +52,19 @@ public struct ASNavigationButton<Label: View, Destination: View>: View {
 
 public struct ASNavigationDismissButton<Label: View>: View {
 	var label: Label
+	var onDismiss: (()->())?
 	var dismissToScreenNamed: String?
 	@Environment(\.dynamicNavState) var dynamicNavState
 	
-	public init(toScreenNamed screenName: String? = nil, @ViewBuilder label: (() -> Label)) {
+	public init(toScreenNamed screenName: String? = nil, onDismiss: (()->())? = nil, @ViewBuilder label: (() -> Label)) {
 		self.dismissToScreenNamed = screenName
+		self.onDismiss = onDismiss
 		self.label = label()
 	}
 	
 	public var body: some View {
 		Button(action: {
+			self.onDismiss?()
 			self.dynamicNavState.pop(toScreenNamed: self.dismissToScreenNamed)
 		}) {
 			label
@@ -73,14 +76,17 @@ public struct ASNavigationDismissButton<Label: View>: View {
 
 public struct ASNavigationPopToRootButton<Label: View>: View {
 	var label: Label
+	var onPopToRoot: (()->())?
 	@Environment(\.dynamicNavState) var dynamicNavState
 	
-	public init(@ViewBuilder label: (() -> Label)) {
+	public init(onPopToRoot: (()->())? = nil, @ViewBuilder label: (() -> Label)) {
+		self.onPopToRoot = onPopToRoot
 		self.label = label()
 	}
 	
 	public var body: some View {
 		Button(action: {
+			self.onPopToRoot?()
 			self.dynamicNavState.popToRoot()
 		}) {
 			label
