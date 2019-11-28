@@ -13,9 +13,9 @@ struct ASNavigationState {
 	weak var coordinator: ASNavigationCoordinator?
 	var layerID: UUID?
 	
-	func push<T: View>(_ view: T, withScreenName screenName: String? = nil) {
+	func push<T: View>(_ view: T, destinationID: UUID, withScreenName screenName: String? = nil) {
 		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return }
-		coordinator?.push(view, fromLayerID: layerID, withScreenName: screenName)
+		coordinator?.push(view, fromLayerID: layerID, destinationID: destinationID, withScreenName: screenName)
 	}
 	func pop(toScreenNamed screenName: String? = nil) {
 		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return  }

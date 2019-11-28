@@ -23,6 +23,9 @@ public struct ASNavigationButton<Label: View, Destination: View>: View {
 	var label: Label
 	var screenName: String?
 	
+	//Used to track if this button is pressed again (eg from master view of splitView)
+	@State var destinationID = UUID()
+	
 	@Environment(\.dynamicNavState) var dynamicNavState
 	
 	public init(screenName: String? = nil, destination: Destination, @ViewBuilder label: (() -> Label)) {
@@ -39,7 +42,7 @@ public struct ASNavigationButton<Label: View, Destination: View>: View {
 	
 	public var body: some View {
 		Button(action: {
-			self.dynamicNavState.push(self.destination, withScreenName: self.screenName)
+			self.dynamicNavState.push(self.destination, destinationID: self.destinationID, withScreenName: self.screenName)
 		}) {
 			HStack {
 				label

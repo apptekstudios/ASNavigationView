@@ -2,12 +2,13 @@ import Foundation
 import SwiftUI
 import UIKit
 
-struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
+struct ASNavigationController<Content: View, Placeholder: View>: UIViewControllerRepresentable {
 	var content: Content
+	var placeholderDetailView: Placeholder
 	
-	
-	init(_ content: Content) {
+	init(_ content: Content, placeholderDetailView: Placeholder) {
 		self.content = content
+		self.placeholderDetailView = placeholderDetailView
 	}
 	
 	func makeCoordinator() -> Coordinator {
@@ -21,7 +22,8 @@ struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
 	}
 	
 	func updateUIViewController(_ navController: ASNavigationController_UIKit, context: Context) {
-		
+		context.coordinator.updateContentView()
+		context.coordinator.updatePlaceholderView()
 	}
 	
 	class Coordinator: NSObject, ASNavigationCoordinator {
@@ -39,27 +41,50 @@ struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
 		}
 		
 		var controllerStack: [Layer] = []
+		var rootContentLayer: Layer?
+		var placeholderContentLayer: Layer?
+		
+		var rootContentHost: ASHostingController<Content>? { rootContentLayer?.controller as? ASHostingController<Content> }
+		var placeholderContentHost: ASHostingController<Placeholder>? { placeholderContentLayer?.controller as? ASHostingController<Placeholder> }
 		
 		init(_ parent: ASNavigationController) {
 			self.parent = parent
 			super.init()
-			self.controllerStack = [layerForView(parent.content, withScreenName: nil)]
+			let root = createLayerForView(parent.content, withScreenName: nil)
+			self.controllerStack = [root]
+			
+			self.rootContentLayer = root
+			self.placeholderContentLayer = createLayerForView(parent.placeholderDetailView, withScreenName: nil)
 		}
 		
-		func layerForView<T: View>(_ view: T, withScreenName screenName: String?) -> Layer {
-			let id = UUID()
+		func updateContentView() {
+			self.rootContentHost?.setView(parent.content)
+		}
+		
+		func updatePlaceholderView() {
+			self.placeholderContentHost?.setView(parent.placeholderDetailView)
+		}
+		
+		func createLayerForView<T: View>(_ view: T, withID id: UUID = UUID(), withScreenName screenName: String?) -> Layer {
 			let controller = ASHostingController<T>(view)
 			controller.parent = self
 			controller.modifier = ASHostingControllerModifier(self, layerID: id)
 			return Layer(id: id, name: screenName, controller: controller)
 		}
 		
-		func push<T: View>(_ view: T, fromLayerID layerID: UUID, withScreenName screenName: String? = nil) {
+		func push<T: View>(_ view: T, fromLayerID layerID: UUID, destinationID: UUID, withScreenName screenName: String? = nil) {
 			let sourceLayerIndex = controllerStack.firstIndex(where: { $0.id == layerID }) ?? (controllerStack.endIndex - 1)
 			var newStack = Array(controllerStack.prefix(through: sourceLayerIndex))
-			newStack.append(
-				layerForView(view, withScreenName: screenName)
-			)
+			let layer: Layer
+			if let existingLayerIndex = controllerStack.lastIndex(where: { $0.id == destinationID }),
+				existingLayerIndex > sourceLayerIndex //Check that the existing layer is downstream, otherwise we'll create a new one
+			{
+				layer = controllerStack[existingLayerIndex]
+			} else {
+				layer = createLayerForView(view, withID: destinationID, withScreenName: screenName)
+			}
+			//Append the layer to the stack
+			newStack.append(layer)
 			controllerStack = newStack
 			updateNavController(animated: true)
 		}
@@ -83,7 +108,8 @@ struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
 		func updateNavController(animated: Bool) {
 			guard let nc = navController else { return }
 			let vcs = controllerStack.map { $0.controller.viewController }
-			nc.setViewControllers(vcs, animated: animated)
+			let placeholderVC = placeholderContentLayer?.controller.viewController
+			nc.setViewControllers(vcs, detailPlaceholder: placeholderVC, animated: animated)
 		}
 		
 		func willDismiss(_ host: ASHostingControllerProtocol) {
@@ -93,7 +119,7 @@ struct ASNavigationController<Content: View>: UIViewControllerRepresentable {
 }
 
 protocol ASNavigationCoordinator: class {
-	func push<T: View>(_ view: T, fromLayerID layerID: UUID, withScreenName screenName: String?)
+	func push<T: View>(_ view: T, fromLayerID layerID: UUID, destinationID: UUID, withScreenName screenName: String?)
 	func pop(fromLayerID layerID: UUID, toScreenNamed screenName: String?)
 	func popToRoot()
 	func willDismiss(_ host: ASHostingControllerProtocol)
@@ -104,10 +130,17 @@ class ASNavigationController_UIKit: UISplitViewController {
 	let detailNavController = ASNavigationSubController_UIKit()
 	
 	var stack: [UIViewController] = []
+	var detailPlaceholder: UIViewController?
+	var hasDetailContent: Bool {
+		stack.count > 1
+	}
 	
-	var rootContent: UIViewController? { stack.first }
-
-	var detailContent: [UIViewController] { Array(stack.dropFirst()) }
+	var stackWithPlaceholderIfRequired: [UIViewController] {
+		if !hasDetailContent { return [stack.first, detailPlaceholder].compactMap { $0 }}
+		return stack
+	}
+	var rootContent: UIViewController? { stackWithPlaceholderIfRequired.first }
+	var detailContent: [UIViewController] { Array(stackWithPlaceholderIfRequired.dropFirst()) }
 	
 	init() {
 		super.init(nibName: nil, bundle: nil)
@@ -119,13 +152,9 @@ class ASNavigationController_UIKit: UISplitViewController {
 		fatalError("init(coder:) has not been implemented")
 	}
 	
-	override func viewWillAppear(_ animated: Bool) {
-		super.viewWillAppear(animated)
-		configureDisplayMode(forHorizontalSizeClass: traitCollection.horizontalSizeClass)
-	}
-	
-	func setViewControllers(_ vcs: [UIViewController], animated: Bool) {
+	func setViewControllers(_ vcs: [UIViewController], detailPlaceholder: UIViewController?, animated: Bool) {
 		self.stack = vcs
+		self.detailPlaceholder = detailPlaceholder
 		configure(animated: animated)
 	}
 	
@@ -138,7 +167,7 @@ class ASNavigationController_UIKit: UISplitViewController {
 		detailContent.first?.navigationItem.leftBarButtonItem = displayModeButtonItem
 		detailContent.first?.navigationItem.leftItemsSupplementBackButton = true
 		
-		if isCollapsed || detailContent.isEmpty {
+		if isCollapsed {
 			masterNavController.setViewControllers(stack, animated: animated)
 			detailNavController.viewControllers = [UIViewController()]
 			viewControllers = [masterNavController, detailNavController]
@@ -148,18 +177,13 @@ class ASNavigationController_UIKit: UISplitViewController {
 			viewControllers = [masterNavController, detailNavController]
 		}
 		
-		configureDisplayMode(forHorizontalSizeClass: traitCollection.horizontalSizeClass, hidePrimary: !detailContent.isEmpty)
+		configureDisplayMode(hidePrimary: !detailContent.isEmpty)
 	}
 	
-	override func willTransition(to newCollection: UITraitCollection, with coordinator: UIViewControllerTransitionCoordinator) {
-		super.willTransition(to: newCollection, with: coordinator)
-		configureDisplayMode(forHorizontalSizeClass: newCollection.horizontalSizeClass)
-	}
-	
-	func configureDisplayMode(forHorizontalSizeClass horizontalSizeClass: UIUserInterfaceSizeClass, hidePrimary: Bool = false) {
+	func configureDisplayMode(hidePrimary: Bool = false) {
 		let isIpadLandscape = UIDevice.current.userInterfaceIdiom == .pad && (view.window?.windowScene?.interfaceOrientation.isLandscape ?? false)
 		
-		if detailContent.isEmpty, horizontalSizeClass == .regular, !isIpadLandscape {
+		if !hasDetailContent, !isCollapsed, !isIpadLandscape {
 			preferredDisplayMode = .primaryOverlay
 		} else {
 			preferredDisplayMode = .automatic
@@ -170,9 +194,14 @@ class ASNavigationController_UIKit: UISplitViewController {
 		}
 	}
 	
-	override func viewDidAppear(_ animated: Bool) {
-		super.viewDidAppear(animated)
-		configureDisplayMode(forHorizontalSizeClass: traitCollection.horizontalSizeClass)
+	var lastBounds: CGRect = .zero
+	override func viewDidLayoutSubviews() {
+		super.viewDidLayoutSubviews()
+		//Opted to use didLayoutSubviews, as iPads will not change trait collection on moving to landscape
+		if view.bounds != lastBounds {
+			lastBounds = view.bounds
+			configureDisplayMode()
+		}
 	}
 }
 
