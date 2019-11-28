@@ -3,8 +3,6 @@
 import Foundation
 import SwiftUI
 
-
-
 internal struct ASHostingControllerModifier: ViewModifier
 {
 	weak var coordinator: ASNavigationCoordinator?

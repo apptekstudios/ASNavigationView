@@ -50,11 +50,11 @@ struct ASNavigationController<Content: View, Placeholder: View>: UIViewControlle
 		init(_ parent: ASNavigationController) {
 			self.parent = parent
 			super.init()
-			let root = createLayerForView(parent.content, withScreenName: nil)
+			let root = createLayerForView(ASNavigationDestination(content: parent.content))
 			self.controllerStack = [root]
 			
 			self.rootContentLayer = root
-			self.placeholderContentLayer = createLayerForView(parent.placeholderDetailView, withScreenName: nil)
+			self.placeholderContentLayer = createLayerForView(ASNavigationDestination(content: parent.placeholderDetailView))
 		}
 		
 		func updateContentView() {
@@ -65,23 +65,28 @@ struct ASNavigationController<Content: View, Placeholder: View>: UIViewControlle
 			self.placeholderContentHost?.setView(parent.placeholderDetailView)
 		}
 		
-		func createLayerForView<T: View>(_ view: T, withID id: UUID = UUID(), withScreenName screenName: String?) -> Layer {
-			let controller = ASHostingController<T>(view)
+		func createLayerForView<T: View>(_ destination: ASNavigationDestination<T>) -> Layer {
+			let controller = ASHostingController<T>(destination.content)
 			controller.parent = self
-			controller.modifier = ASHostingControllerModifier(self, layerID: id)
-			return Layer(id: id, name: screenName, controller: controller)
+			controller.modifier = ASHostingControllerModifier(self, layerID: destination.id)
+			return Layer(id: destination.id ?? UUID(), name: destination.screenName, controller: controller)
 		}
 		
-		func push<T: View>(_ view: T, fromLayerID layerID: UUID, destinationID: UUID, withScreenName screenName: String? = nil) {
+		func push<T: View>(_ destination: ASNavigationDestination<T>, fromLayerID layerID: UUID) {
 			let sourceLayerIndex = controllerStack.firstIndex(where: { $0.id == layerID }) ?? (controllerStack.endIndex - 1)
 			var newStack = Array(controllerStack.prefix(through: sourceLayerIndex))
-			let layer: Layer
-			if let existingLayerIndex = controllerStack.lastIndex(where: { $0.id == destinationID }),
+			var layer: Layer
+			if let existingLayerIndex = controllerStack.lastIndex(where: { $0.id == destination.id }),
 				existingLayerIndex > sourceLayerIndex //Check that the existing layer is downstream, otherwise we'll create a new one
 			{
 				layer = controllerStack[existingLayerIndex]
+				if let layerHost = layer.controller as? ASHostingController<T> { //Check it is the right type
+					layerHost.setView(destination.content) //Update content if needed
+				} else {
+					layer = createLayerForView(destination)
+				}
 			} else {
-				layer = createLayerForView(view, withID: destinationID, withScreenName: screenName)
+				layer = createLayerForView(destination)
 			}
 			//Append the layer to the stack
 			newStack.append(layer)
@@ -119,7 +124,7 @@ struct ASNavigationController<Content: View, Placeholder: View>: UIViewControlle
 }
 
 protocol ASNavigationCoordinator: class {
-	func push<T: View>(_ view: T, fromLayerID layerID: UUID, destinationID: UUID, withScreenName screenName: String?)
+	func push<T: View>(_ destination: ASNavigationDestination<T>, fromLayerID layerID: UUID)
 	func pop(fromLayerID layerID: UUID, toScreenNamed screenName: String?)
 	func popToRoot()
 	func willDismiss(_ host: ASHostingControllerProtocol)
