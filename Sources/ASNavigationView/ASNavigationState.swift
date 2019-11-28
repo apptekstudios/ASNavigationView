@@ -9,19 +9,19 @@
 import Foundation
 import SwiftUI
 
-struct ASNavigationState {
-	weak var coordinator: ASNavigationCoordinator?
-	var layerID: UUID?
+public struct ASNavigationState {
+	internal weak var coordinator: ASNavigationCoordinator?
+	internal var layerID: UUID?
 	
-	func push<T: View>(_ destination: ASNavigationDestination<T>) {
+	public func push<T: View>(_ destination: ASNavigationDestination<T>) {
 		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return }
 		coordinator?.push(destination, fromLayerID: layerID)
 	}
-	func pop(toScreenNamed screenName: String? = nil) {
+	public func pop(toScreenNamed screenName: String? = nil) {
 		guard let layerID = layerID else { print("Tried to use ASNavigationLink that is not within an ASNavigationView"); return  }
 		coordinator?.pop(fromLayerID: layerID, toScreenNamed: screenName)
 	}
-	func popToRoot() {
+	public func popToRoot() {
 		coordinator?.popToRoot()
 	}
 }
@@ -33,7 +33,7 @@ struct EnvironmentKeyASNavigationState: EnvironmentKey
 
 extension EnvironmentValues
 {
-	var dynamicNavState: ASNavigationState
+	public var navigationState: ASNavigationState
 	{
 		get { return self[EnvironmentKeyASNavigationState.self] }
 		set { self[EnvironmentKeyASNavigationState.self] = newValue }

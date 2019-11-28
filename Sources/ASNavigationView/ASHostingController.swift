@@ -16,7 +16,7 @@ internal struct ASHostingControllerModifier: ViewModifier
 	func body(content: Content) -> some View
 	{
 		content
-			.transformEnvironment(\.dynamicNavState) { state in
+			.transformEnvironment(\.navigationState) { state in
 				state.layerID = self.layerID
 				state.coordinator = self.coordinator
 		}

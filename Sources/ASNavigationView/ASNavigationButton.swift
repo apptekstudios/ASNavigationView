@@ -16,7 +16,7 @@ public struct ASNavigationButton<Label: View, ButtonStyleType: ButtonStyle, Dest
 	
 	@State private var defaultDestinationID = UUID() //Used if not passing a ASNavigationDestinatino
 	
-	@Environment(\.dynamicNavState) var dynamicNavState
+	@Environment(\.navigationState) var navigationState
 	
 	public init(style: ButtonStyleType, screenName: String? = nil, destination: DestinationContent, @ViewBuilder label: (() -> Label)) {
 		self.style = style
@@ -37,7 +37,7 @@ public struct ASNavigationButton<Label: View, ButtonStyleType: ButtonStyle, Dest
 	func pushContent() {
 		var destination = self.destination
 		destination.id = destination.id ?? defaultDestinationID // Use this button's default destinationID if we're not using ASNavigationDestination
-		dynamicNavState.push(destination)
+		navigationState.push(destination)
 	}
 	
 	public var body: some View {
@@ -72,7 +72,7 @@ public struct ASNavigationDismissButton<Label: View, ButtonStyleType: ButtonStyl
 	var label: Label
 	var onDismiss: (()->())?
 	var dismissToScreenNamed: String?
-	@Environment(\.dynamicNavState) var dynamicNavState
+	@Environment(\.navigationState) var navigationState
 	
 	public init(style: ButtonStyleType, toScreenNamed screenName: String? = nil, onDismiss: (()->())? = nil, @ViewBuilder label: (() -> Label)) {
 		self.style = style
@@ -84,7 +84,7 @@ public struct ASNavigationDismissButton<Label: View, ButtonStyleType: ButtonStyl
 	public var body: some View {
 		Button(action: {
 			self.onDismiss?()
-			self.dynamicNavState.pop(toScreenNamed: self.dismissToScreenNamed)
+			self.navigationState.pop(toScreenNamed: self.dismissToScreenNamed)
 		}) {
 			label
 		}
@@ -102,7 +102,7 @@ public struct ASNavigationPopToRootButton<Label: View, ButtonStyleType: ButtonSt
 	var style: ButtonStyleType
 	var label: Label
 	var onPopToRoot: (()->())?
-	@Environment(\.dynamicNavState) var dynamicNavState
+	@Environment(\.navigationState) var navigationState
 	
 	public init(style: ButtonStyleType, onPopToRoot: (()->())? = nil, @ViewBuilder label: (() -> Label)) {
 		self.style = style
@@ -113,7 +113,7 @@ public struct ASNavigationPopToRootButton<Label: View, ButtonStyleType: ButtonSt
 	public var body: some View {
 		Button(action: {
 			self.onPopToRoot?()
-			self.dynamicNavState.popToRoot()
+			self.navigationState.popToRoot()
 		}) {
 			label
 		}
